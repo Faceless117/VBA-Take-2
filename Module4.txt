@@ -1,0 +1,215 @@
+Attribute VB_Name = "Module4"
+
+Sub SendPOInquiryTEST()
+
+'Filters and Exports Reports to .pdf, then generates email based on vendor for review
+
+'Each collection is for each Report
+
+Dim DocTieVen As New Collection
+Dim StockOutVen As New Collection
+Dim HundredVen As New Collection
+Dim MasterColl As New Collection
+Dim itm
+Dim I As Long
+Dim L As Long
+Dim K As Long
+Dim VenNum As String
+Dim DTLR As Long
+Dim SOLR As Long
+Dim HDLR As Long
+Dim SOPT As Long
+Dim POEmail As MailItem
+Dim Attachments() As String
+
+Set POEmail = Outlook.CreateItemFromTemplate("\\FilePath\Desktop\Open Orders\PO Inquiry.oft")
+    
+    
+DTLR = Sheets("DocTie").UsedRange.Rows.Count
+SOLR = Sheets("StockOutData").UsedRange.Rows.Count
+HDLR = Sheets("100+ Day").UsedRange.Rows.Count
+
+'This section creates collections based on Vendor Number for Each Report
+For I = 3 To DTLR
+    VenNum = Sheets("DocTie").Range("C" & I).Value
+    On Error Resume Next
+    If Not IsEmpty(Sheets("DocTie").Range("C" & I)) = True Then
+    DocTieVen.Add VenNum, Chr(34) & VenNum & Chr(34)
+    Else: Exit For
+    End If
+Next I
+
+For I = 2 To SOLR
+    VenNum = Sheets("StockOutData").Range("C" & I).Value
+    On Error Resume Next
+    If Not IsEmpty(Sheets("StockOutData").Range("C" & I)) = True Then
+    StockOutVen.Add VenNum, Chr(34) & VenNum & Chr(34)
+    Else: Exit For
+    End If
+Next I
+
+For I = 3 To HDLR
+    VenNum = Sheets("100+ Day").Range("C" & I).Value
+    On Error Resume Next
+    If Not IsEmpty(Sheets("100+ Day").Range("C" & I)) = True Then
+    HundredVen.Add VenNum, Chr(34) & VenNum & Chr(34)
+    Else: Exit For
+    End If
+Next I
+
+'Then Master Collection is created for Emails
+For Each Item In DocTieVen
+    MasterColl.Add Item, Chr(34) & Item & Chr(34)
+    On Error Resume Next
+Next
+
+For Each Item In StockOutVen
+    MasterColl.Add Item, Chr(34) & Item & Chr(34)
+    On Error Resume Next
+Next
+
+For Each Item In HundredVen
+    MasterColl.Add Item, Chr(34) & Item & Chr(34)
+    On Error Resume Next
+Next
+
+'This Section Filters and Generates .pdf for each Vendor Number
+ Sheets("DocTie").Activate
+
+For L = 1 To DocTieVen.Count
+    Sheets("DocTie").Range("C2").AutoFilter Field:=3, Criteria1:=DocTieVen(L)
+    Call POInquirySort
+    On Error Resume Next
+            Sheets("DocTie").Range("B1:I" & DTLR).Select
+                Selection.ExportAsFixedFormat _
+                    Type:=xlTypePDF, Filename:="\\FilePath\Desktop\Open Orders\POInquiry Reports\" & "PO Inquiry Ties-" & DocTieVen(L) & ".pdf", _
+                    Quality:=xlQualityStandard, _
+                    IncludeDocProperties:=True, _
+                    IgnorePrintAreas:=False, _
+                    OpenAfterPublish:=False
+            Sheets("DocTie").ShowAllData
+Next L
+
+ Sheets("100+ Day").Activate
+ 
+For L = 1 To HundredVen.Count
+    Sheets("100+ Day").Range("C2").AutoFilter Field:=3, Criteria1:=HundredVen(L)
+    Call POInquirySort
+    On Error Resume Next
+            
+            Sheets("100+ Day").Range("B1:I" & HDLR).Select
+                Selection.ExportAsFixedFormat _
+                    Type:=xlTypePDF, Filename:="\\FilePath\Desktop\Open Orders\POInquiry Reports\" & "PO Inquiry 100+ Days-" & HundredVen(L) & ".pdf", _
+                    Quality:=xlQualityStandard, _
+                    IncludeDocProperties:=True, _
+                    IgnorePrintAreas:=False, _
+                    OpenAfterPublish:=False
+            Sheets("100+ Day").ShowAllData
+Next L
+
+'Stock Outs are different, because they're in a Pivot Table
+Sheets("StockOut").Activate
+Sheets("StockOut").PivotTables("PivotTable3").PivotFields("Vendor #").EnableMultiplePageItems = True
+
+Sheets("StockOut").PivotTables("PivotTable3").PivotFields("Vendor #").PivotItems("(blank)").Visible = False
+
+For L = 1 To StockOutVen.Count
+    Sheets("StockOut").PivotTables("PivotTable3").PivotFields("Vendor #").PivotItems(StockOutVen(L)).Visible = False
+Next L
+
+For L = 1 To StockOutVen.Count
+    
+    If L = 1 Then
+    Sheets("StockOut").PivotTables("PivotTable3").PivotFields("Vendor #").PivotItems(StockOutVen(L)).Visible = True
+    End If
+    
+    If L >= 2 Then
+    Sheets("StockOut").PivotTables("PivotTable3").PivotFields("Vendor #").PivotItems(StockOutVen(L - 1)).Visible = False
+    End If
+    
+    If L >= 2 Then
+    Sheets("StockOut").PivotTables("PivotTable3").PivotFields("Vendor #").PivotItems(StockOutVen(L)).Visible = True
+    End If
+    
+    SOPT = Sheets("StockOut").UsedRange.Rows.Count
+    
+    Sheets("StockOut").Range("A8:B" & SOPT).Select
+    Sheets("StockOut").Columns("B:B").ColumnWidth = 36.7
+        Selection.ExportAsFixedFormat _
+                    Type:=xlTypePDF, Filename:="\\FilePath\Desktop\Open Orders\POInquiry Reports\" & "PO Inquiry StockOut-" & StockOutVen(L) & ".pdf", _
+                    Quality:=xlQualityStandard, _
+                    IncludeDocProperties:=True, _
+                    IgnorePrintAreas:=False, _
+                    OpenAfterPublish:=False
+Next L
+
+Sheets("Data").Range("A1").Select
+
+'This Secion Generates Emails based on Template and attaches .pdfs using Master Collection
+For L = 1 To MasterColl.Count
+    
+Dim TiesPDF As String
+TiesPDF = "\\FilePath\Desktop\Open Orders\POInquiry Reports\" & "PO Inquiry Ties-" & MasterColl(L) & ".pdf"
+Dim StockPDF As String
+StockPDF = "\\FilePath\Desktop\Open Orders\POInquiry Reports\" & "PO Inquiry StockOut-" & MasterColl(L) & ".pdf"
+Dim HundredPDF As String
+HundredPDF = "\\FilePath\Desktop\Open Orders\POInquiry Reports\" & "PO Inquiry 100+ Days-" & MasterColl(L) & ".pdf"
+Dim PDF As New Collection
+    PDF.Add TiesPDF, Chr(34) & TiesPDF & Chr(34)
+    PDF.Add StockPDF, Chr(34) & StockPDF & Chr(34)
+    PDF.Add HundredPDF, Chr(34) & HundredPDF & Chr(34)
+Set POEmail = Outlook.CreateItemFromTemplate("\\FilePath\Desktop\Open Orders\PO Inquiry.oft")
+
+
+
+    
+POEmail.Display
+    
+    With POEmail
+        .To = MasterColl(L)
+        .Subject = "PO Inquiry" & Today
+    End With
+    
+    For I = 1 To PDF.Count
+        If Not Dir(PDF(I)) = "" Then
+        POEmail.Attachments.Add PDF(I)
+        End If
+        On Error Resume Next
+    Next I
+I = 0
+Set PDF = Nothing
+
+Next L
+
+End Sub
+
+Sub POInquirySort()
+
+Dim LR As Long
+LR = ActiveSheet.UsedRange.Rows.Count
+
+    ActiveSheet.AutoFilter.Sort.SortFields.Add2 Key:= _
+        Range("F2:F" & LR), SortOn:=xlSortOnValues, Order:=xlAscending, DataOption _
+        :=xlSortNormal
+    With ActiveSheet.AutoFilter.Sort
+        .Header = xlYes
+        .MatchCase = False
+        .Orientation = xlTopToBottom
+        .SortMethod = xlPinYin
+        .Apply
+    End With
+    
+    ActiveSheet.AutoFilter.Sort.SortFields.Clear
+    
+    ActiveSheet.AutoFilter.Sort.SortFields.Add2 Key:= _
+        Range("E2:E" & LR), SortOn:=xlSortOnValues, Order:=xlAscending, DataOption _
+        :=xlSortNormal
+    With ActiveSheet.AutoFilter.Sort
+        .Header = xlYes
+        .MatchCase = False
+        .Orientation = xlTopToBottom
+        .SortMethod = xlPinYin
+        .Apply
+    End With
+    
+End Sub

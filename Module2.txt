@@ -1,0 +1,59 @@
+Attribute VB_Name = "Module2"
+
+Sub SendShipDates()
+
+Dim Collection As New Collection
+Dim itm
+Dim I As Long
+Dim L As Long
+Dim Sales As Variant
+
+For I = 1 To 30
+    Sales = ActiveSheet.Range("L" & I).Value
+    On Error Resume Next
+    If Not ActiveSheet.Range("L" & I).Value = 0 Then
+    Collection.Add Sales, Chr(34) & Sales & Chr(34)
+    Else: Exit For
+    End If
+Next I
+
+For L = 2 To Collection.Count
+    LR = ActiveSheet.UsedRange.Rows.Count
+    ActiveSheet.Range("L:L").AutoFilter Field:=12, Criteria1:=Collection(L)
+    On Error Resume Next
+            ActiveSheet.Range("A1:K" & LR).Select
+                Selection.ExportAsFixedFormat _
+                Type:=xlTypePDF, Filename:="\\Filepath\Desktop\Forms & Data\SDN\" & "Ship Date Notification" & "-" & Collection(L) & ".pdf", _
+                Quality:=xlQualityStandard, _
+                IncludeDocProperties:=True, _
+                IgnorePrintAreas:=False, _
+                OpenAfterPublish:=False
+    ActiveSheet.Range("G:G").AutoFilter Field:=12
+
+Dim Outlook As Outlook.Application
+Set Outlook = New Outlook.Application
+Dim Email As Outlook.MailItem
+Set Email = Outlook.CreateItem(olMailItem)
+
+Dim Signature As String
+
+With Email
+    .Display
+End With
+
+
+With Email
+    .To = Collection(L)
+    .Subject = "Ship Date Notification" & Today
+    .Attachments.Add "\\Filepath\Desktop\Forms & Data\SDN\" & "Ship Date Notification" & "-" & Collection(L) & ".pdf"
+    .HTMLBody = "<p style='font-family:calibri;Font-Size:14.5'>" & "Hello!" & "<br>" & "<br>" & "Please be advised of the attached Ship Dates." & "<br>" & "<br>" & "If you have any questions, please let me know!" & "<br>" & "<br>" & "Thank you," & Email.HTMLBody & "<\p>"
+
+End With
+
+Set Email = Nothing
+
+Next L
+
+End Sub
+
+

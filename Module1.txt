@@ -1,0 +1,114 @@
+Attribute VB_Name = "Module1"
+Sub ExpediteRaw_Clean_Up()
+Attribute ExpediteRaw_Clean_Up.VB_Description = "Adjusts Raw Expedite Data for Export to Vendors and updates Data Sheet"
+Attribute ExpediteRaw_Clean_Up.VB_ProcData.VB_Invoke_Func = " \n14"
+'
+' Expedite_Clean_Up Macro
+' Adjusts Raw Expedite Data for Export to Vendors and updates Data Sheet
+
+'
+    
+    Rows("1:1").Select
+    With Selection
+        .HorizontalAlignment = xlGeneral
+        .WrapText = False
+        .Orientation = 0
+        .AddIndent = False
+        .IndentLevel = 0
+        .ShrinkToFit = False
+        .MergeCells = False
+    End With
+    Selection.AutoFilter
+    Columns("K:K").Select
+    Selection.Cut
+    Columns("E:E").Select
+    Selection.Insert Shift:=xlToRight
+ ActiveSheet.Range("G1").Select
+        Do Until IsEmpty(ActiveCell)
+        ActiveCell.Offset(1, 0).Select
+            If ActiveCell.Offset(0, -3).Value = "n" And IsEmpty(ActiveCell.Offset(0, 1)) Then
+                ActiveCell.Copy ActiveCell.Offset(0, 1)
+                Else
+            End If
+        Loop
+    Columns("G:G").Select
+    Selection.EntireColumn.Hidden = True
+
+End Sub
+
+Sub Tables_Filter()
+'
+' DocTieFilter Filters out Raw Data and breaks it out to each sheet
+'
+
+'
+Dim LR As Long
+LR = ActiveSheet.UsedRange.Rows.Count
+
+Sheets("Data").Activate
+    ActiveSheet.Range("N:N").AutoFilter Field:=14, Criteria1:="<>"
+    ActiveSheet.Range("R:R").AutoFilter Field:=18, Criteria1:="CHECK"
+    ActiveSheet.Range("S:S").AutoFilter Field:=19, Criteria1:="CHECK"
+    ActiveSheet.Range("T:T").AutoFilter Field:=20, Criteria1:="CHECK"
+
+ActiveSheet.Range("A1:Q" & LR).SpecialCells(xlCellTypeVisible).Select
+Selection.Copy
+Sheets("DocTie").Range("A2").PasteSpecial
+
+Rows("1:1").Select
+    ActiveSheet.ShowAllData
+
+Sheets("Data").Activate
+    ActiveSheet.Range("K:K").AutoFilter Field:=11, Criteria1:="<> 0"
+    ActiveSheet.Range("N:N").AutoFilter Field:=14, Criteria1:=""
+    ActiveSheet.Range("R:R").AutoFilter Field:=18, Criteria1:="CHECK"
+    ActiveSheet.Range("S:S").AutoFilter Field:=19, Criteria1:="CHECK"
+    ActiveSheet.Range("T:T").AutoFilter Field:=20, Criteria1:="CHECK"
+    ActiveSheet.Range("V:V").AutoFilter Field:=22, Criteria1:="CHECK"
+
+ActiveSheet.Range("A1:Q" & LR).SpecialCells(xlCellTypeVisible).Select
+Selection.Copy
+Sheets("100+ Day").Range("A2").PasteSpecial
+
+Rows("1:1").Select
+    ActiveSheet.ShowAllData
+
+Sheets("Data").Activate
+    ActiveSheet.Range("D:D").AutoFilter Field:=4, Criteria1:="S"
+    ActiveSheet.Range("K:K").AutoFilter Field:=11, Criteria1:="0"
+    ActiveSheet.Range("R:R").AutoFilter Field:=18, Criteria1:="CHECK"
+    ActiveSheet.Range("S:S").AutoFilter Field:=19, Criteria1:="CHECK"
+    ActiveSheet.Range("T:T").AutoFilter Field:=20, Criteria1:="CHECK"
+    
+ActiveSheet.Range("A1:Q" & LR).SpecialCells(xlCellTypeVisible).Select
+Selection.Copy
+Sheets("StockOutData").Range("A1").PasteSpecial
+
+Rows("1:1").Select
+    ActiveSheet.ShowAllData
+
+End Sub
+
+Sub Final_Clean_Template()
+Dim LR As Long
+
+LR = ActiveSheet.UsedRange.Rows.Count
+
+    Sheets("DocTie").Select
+    
+    Range("A2:P" & LR).Select
+    Selection.ClearContents
+    
+    Sheets("100+ Day").Select
+    Range("A2:P" & LR).Select
+    Selection.ClearContents
+    
+    Sheets("StockOutData").Select
+    Columns("A:P").Select
+    Selection.ClearContents
+    
+    Sheets("Data").Select
+    Columns("A:Q").Select
+    Selection.ClearContents
+End Sub
+
